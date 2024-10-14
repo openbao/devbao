@@ -179,7 +179,7 @@ func ProdServerFlags() []cli.Flag {
 		&cli.StringFlag{
 			Name:  "storage",
 			Value: "raft",
-			Usage: "Storage backend to use; choose between `raft`, `file`, or `inmem`. File and Memory backends are not recommended for production use.",
+			Usage: "Storage backend to use; choose between `raft`, `postgresql`, `file`, or `inmem`. File and Memory backends are not recommended for production use.",
 		},
 		&cli.BoolFlag{
 			Name:    "initialize",
@@ -251,12 +251,14 @@ func RunNodeStartCommand(cCtx *cli.Context) error {
 	switch storage {
 	case "", "raft":
 		opts = append(opts, &bao.RaftStorage{})
+	case "postgresql":
+		opts = append(opts, &bao.PostgresqlStorage{})
 	case "file":
 		opts = append(opts, &bao.FileStorage{})
 	case "inmem":
 		opts = append(opts, &bao.InmemStorage{})
 	default:
-		return fmt.Errorf("unknown value for -storage: `%v`; supported values are `raft`, `file`, or `inmem`", storage)
+		return fmt.Errorf("unknown value for -storage: `%v`; supported values are `raft`, `postgresql`, `file`, or `inmem`", storage)
 	}
 
 	listeners := cCtx.StringSlice("listeners")

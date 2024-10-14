@@ -223,6 +223,39 @@ func (r *RaftStorage) StorageType() string {
 	return "raft"
 }
 
+type PostgresqlStorage struct {
+	ConnectionURL string `json:"connection_url"`
+}
+
+func (p *PostgresqlStorage) FromInterface(iface map[string]interface{}) error {
+	p.ConnectionURL = iface["connection_url"].(string)
+	return nil
+}
+
+func (p *PostgresqlStorage) ToConfig(directory string) (string, error) {
+	path := filepath.Join(directory, "storage/postgresql")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		return "", fmt.Errorf("failed to make postgres storage directory (%v): %w", path, err)
+	}
+
+	// XXX - start Postgres container image and automatically volume-mount the data store.
+
+	p.ConnectionURL = "postgres://openbao:Secret123@localhost:5432/openbao?sslmode=disable"
+
+	config := `storage "postgresql" {` + "\n"
+	config += `  connection_url = "` + p.ConnectionURL + `"` + "\n"
+	config += `  table = "openbao_kv_store"` + "\n"
+	config += `  ha_table = "openbao_ha_locks"` + "\n"
+	config += `  ha_enabled = true` + "\n"
+	config += "}\n"
+
+	return config, nil
+}
+
+func (p *PostgresqlStorage) StorageType() string {
+	return "postgresql"
+}
+
 type FileStorage struct{}
 
 func (f *FileStorage) FromInterface(iface map[string]interface{}) error {
@@ -465,6 +498,8 @@ func (n *NodeConfig) FromInterface(iface map[string]interface{}) error {
 		switch n.StorageType {
 		case "raft":
 			n.Storage = &RaftStorage{}
+		case "postgresql":
+			n.Storage = &PostgresqlStorage{}
 		case "file":
 			n.Storage = &FileStorage{}
 		case "inmem":
@@ -556,6 +591,8 @@ func (n *NodeConfig) Validate() error {
 	switch n.Storage.(type) {
 	case *RaftStorage:
 		n.StorageType = "raft"
+	case *PostgresqlStorage:
+		n.StorageType = "postgresql"
 	case *FileStorage:
 		n.StorageType = "file"
 	case *InmemStorage:
