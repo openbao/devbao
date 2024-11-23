@@ -16,9 +16,16 @@ func BuildClusterJoinCommand() *cli.Command {
 		Usage:     "join a given node to the cluster",
 
 		Action: RunClusterJoinCommand,
-	}
 
-	c.Flags = append(c.Flags, ClusterFlags()...)
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "non-voter",
+				Aliases: []string{"nv"},
+				Value:   false,
+				Usage:   "mark new node as a non-voter",
+			},
+		},
+	}
 
 	return c
 }
@@ -30,6 +37,8 @@ func RunClusterJoinCommand(cCtx *cli.Context) error {
 
 	clusterName := cCtx.Args().First()
 	nodeName := cCtx.Args().Get(1)
+
+	nonVoter := cCtx.Bool("non-voter")
 
 	cluster, err := bao.LoadCluster(clusterName)
 	if err != nil {
@@ -44,6 +53,8 @@ func RunClusterJoinCommand(cCtx *cli.Context) error {
 	if node.Cluster != "" {
 		return fmt.Errorf("refusing to add node already in a cluster (`%v`)", node.Cluster)
 	}
+
+	node.NonVoter = nonVoter
 
 	if err := cluster.JoinNodeHACluster(node); err != nil {
 		return fmt.Errorf("failed to join node to cluster: %w", err)
