@@ -286,6 +286,7 @@ func (c *Cluster) JoinNodeHACluster(node *Node) error {
 	resp, err := nodeClient.Sys().RaftJoin(&api.RaftJoinRequest{
 		LeaderAPIAddr: leaderClient.Address(),
 		Retry:         true,
+		NonVoter:      node.NonVoter,
 	})
 	if err != nil {
 		return fmt.Errorf("failed joining node %v to cluster %v / leader %v: %w", node.Name, c.Name, leaderNode.Name, err)

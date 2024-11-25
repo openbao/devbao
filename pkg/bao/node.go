@@ -30,7 +30,8 @@ type Node struct {
 	Token      string   `json:"token"`
 	UnsealKeys []string `json:"unseal_keys,omitempty"`
 
-	Cluster string `json:"cluster,omitempty"`
+	Cluster  string `json:"cluster,omitempty"`
+	NonVoter bool   `json:"non_voter"`
 }
 
 func (n *Node) FromInterface(iface map[string]interface{}) error {

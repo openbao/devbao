@@ -29,6 +29,11 @@ func ClusterInfoFlags() []cli.Flag {
 			Value: 3,
 			Usage: "number of nodes to run in the cluster; suggested to use an odd number.",
 		},
+		&cli.IntFlag{
+			Name:  "non-voter",
+			Value: 0,
+			Usage: "number of non-voter nodes to run in the cluster; less than count",
+		},
 		&cli.StringFlag{
 			Name:  "listen",
 			Value: "0.0.0.0",
@@ -85,11 +90,18 @@ func RunClusterStartCommand(cCtx *cli.Context) error {
 
 	listen := cCtx.String("listen")
 
+	nonVoter := cCtx.Int("non-voter")
+	if nonVoter < 0 {
+		return fmt.Errorf("expected at least zero non-voter nodes; got %v", nonVoter)
+	}
+
 	count := cCtx.Int("count")
 	if count < 1 {
 		return fmt.Errorf("required to have at least one node in the cluster; got %v", count)
-	} else if (count % 2) == 0 {
-		fmt.Fprintf(os.Stderr, "[warning] it is suggested to have an odd number of nodes in the HA cluster")
+	} else if nonVoter >= count {
+		return fmt.Errorf("required to have at least one voting node in the cluster; have %v non-voters, leaving %v voters", nonVoter, count-nonVoter)
+	} else if ((count - nonVoter) % 2) == 0 {
+		fmt.Fprintf(os.Stderr, "[warning] it is suggested to have an odd number of voting nodes in the HA cluster")
 	}
 
 	clusterName := cCtx.Args().First()
@@ -110,7 +122,14 @@ func RunClusterStartCommand(cCtx *cli.Context) error {
 	// Build nodes
 	var nodes []*bao.Node
 	for index := 0; index < count; index++ {
-		name := fmt.Sprintf("%v-node-%d", clusterName, index)
+		nonVoter := index >= (count - nonVoter)
+
+		nvSuffix := ""
+		if nonVoter {
+			nvSuffix = "-nv"
+		}
+
+		name := fmt.Sprintf("%v-node-%d%v", clusterName, index, nvSuffix)
 		fmt.Printf("starting %v...\n", name)
 
 		port := portBase + index*100
@@ -157,6 +176,13 @@ func RunClusterStartCommand(cCtx *cli.Context) error {
 		node, err := bao.BuildNode(name, nType, opts...)
 		if err != nil {
 			return fmt.Errorf("failed to build node %v: %w", name, err)
+		}
+
+		node.NonVoter = nonVoter
+		if nonVoter {
+			if err := node.SaveConfig(); err != nil {
+				return fmt.Errorf("failed to save non-voter config for node %v: %w", name, err)
+			}
 		}
 
 		if err := node.Start(); err != nil {
