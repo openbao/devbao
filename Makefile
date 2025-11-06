@@ -4,7 +4,7 @@ GO?=go
 bin:
 	rm -f bin/devbao
 	mkdir -p bin/
-	$(GO) build -o bin/devbao github.com/cipherboy/devbao/cmd/devbao
+	$(GO) build -o bin/devbao github.com/openbao/devbao/cmd/devbao
 	ls -lh bin/devbao
 
 .PHONY: fmt

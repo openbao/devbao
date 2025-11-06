@@ -9,6 +9,12 @@ and a common configuration directory.
 
 Missing an option? Open a pull request!
 
+## Install
+
+```$
+$ go install github.com/openbao/devbao/cmd/devbao@main
+```
+
 ## Building
 
 To build and run:

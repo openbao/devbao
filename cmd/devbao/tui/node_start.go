@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/cipherboy/devbao/pkg/bao"
+	"github.com/openbao/devbao/pkg/bao"
 )
 
 type nodeStart struct {

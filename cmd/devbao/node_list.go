@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cipherboy/devbao/pkg/bao"
+	"github.com/openbao/devbao/pkg/bao"
 
 	"github.com/urfave/cli/v2"
 )

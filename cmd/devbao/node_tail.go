@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/cipherboy/devbao/pkg/bao"
-	"github.com/cipherboy/devbao/pkg/utils"
+	"github.com/openbao/devbao/pkg/bao"
+	"github.com/openbao/devbao/pkg/utils"
 
 	"github.com/urfave/cli/v2"
 )

@@ -1,4 +1,4 @@
-module github.com/cipherboy/devbao
+module github.com/openbao/devbao
 
 go 1.22.0
 

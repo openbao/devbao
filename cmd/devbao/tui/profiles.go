@@ -5,7 +5,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/cipherboy/devbao/pkg/bao"
+	"github.com/openbao/devbao/pkg/bao"
 )
 
 type profileItem string

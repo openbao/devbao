@@ -6,7 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/urfave/cli/v2"
 
-	"github.com/cipherboy/devbao/cmd/devbao/tui"
+	"github.com/openbao/devbao/cmd/devbao/tui"
 )
 
 func BuildTUICommand() *cli.Command {
