@@ -16,7 +16,9 @@ func BuildClusterCommand() *cli.Command {
 	c.Subcommands = append(c.Subcommands, BuildClusterJoinCommand())
 	c.Subcommands = append(c.Subcommands, BuildClusterListCommand())
 	c.Subcommands = append(c.Subcommands, BuildClusterRemoveCommand())
+	c.Subcommands = append(c.Subcommands, BuildClusterResumeCommand())
 	c.Subcommands = append(c.Subcommands, BuildClusterStartCommand())
+	c.Subcommands = append(c.Subcommands, BuildClusterUnsealCommand())
 
 	return c
 }

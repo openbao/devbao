@@ -1,7 +1,9 @@
 package bao
 
 import (
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -309,6 +311,38 @@ func (t *TransitSeal) ToConfig(directory string) (string, error) {
 	return config, nil
 }
 
+type StaticSeal struct {
+	CurrentKey  string `json:"current_key"`
+	PreviousKey string ` json:"previous_key"`
+}
+
+func (s *StaticSeal) UnsealHelper(client *api.Client) error { return nil }
+
+func (s *StaticSeal) FromInterface(iface map[string]interface{}) error {
+	s.CurrentKey = iface["current_key"].(string)
+	s.PreviousKey = iface["previous_key"].(string)
+	return nil
+}
+
+func (s *StaticSeal) ToConfig(directory string) (string, error) {
+	currentKeyHash := sha256.Sum256([]byte(s.CurrentKey))
+	currentKeyId := hex.EncodeToString(currentKeyHash[:])
+	previousKeyHash := sha256.Sum256([]byte(s.PreviousKey))
+	previousKeyId := hex.EncodeToString(previousKeyHash[:])
+
+	config := `seal "static" {` + "\n"
+	config += `  current_key = "` + s.CurrentKey + `"` + "\n"
+	config += `  current_key_id = "` + currentKeyId + `"` + "\n"
+
+	if s.PreviousKey != "" {
+		config += `  previous_key = "` + s.PreviousKey + `"` + "\n"
+		config += `  previous_key_id = "` + previousKeyId + `"` + "\n"
+	}
+
+	config += "}\n"
+	return config, nil
+}
+
 type CommonAudit struct {
 	ConfigBuilder
 
@@ -523,6 +557,8 @@ func (n *NodeConfig) FromInterface(iface map[string]interface{}) error {
 			switch sealType {
 			case "transit":
 				n.Seals = append(n.Seals, &TransitSeal{})
+			case "static":
+				n.Seals = append(n.Seals, &StaticSeal{})
 			default:
 				return fmt.Errorf("unknown seal type at index %v: %v", index, sealType)
 			}
@@ -607,6 +643,8 @@ func (n *NodeConfig) Validate() error {
 		switch seal.(type) {
 		case *TransitSeal:
 			n.SealTypes = append(n.SealTypes, "transit")
+		case *StaticSeal:
+			n.SealTypes = append(n.SealTypes, "static")
 		default:
 			return fmt.Errorf("unknown seal type at index %v: %T / %v", index, seal, seal)
 		}
