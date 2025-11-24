@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -197,14 +196,11 @@ func ProdServerFlags() []cli.Flag {
 			Value:   false,
 			Usage:   "Automatically initialize the underlying node, saving unseal keys",
 		},
-		&cli.StringSliceFlag{
-			Name:  "seals",
-			Value: nil,
-			Usage: "URI schemes of seals to add; can be specified multiple times. Use\n\t`http(s)://<TOKEN>@<ADDR>/<MOUNT_PATH>/keys/<KEY_NAME>` for Transit.",
-		},
 	}
 
 	ret = append(ret, UnsealFlags()...)
+	ret = append(ret, sealFlags()...)
+	ret = append(ret, storageFlags()...)
 	return ret
 }
 
@@ -230,7 +226,6 @@ func RunNodeStartCommand(cCtx *cli.Context) error {
 
 	name := cCtx.String("name")
 	nType := cCtx.String("type")
-	storage := cCtx.String("storage")
 	initialize := cCtx.Bool("initialize")
 	unseal := cCtx.Bool("unseal")
 	force := cCtx.Bool("force")
@@ -259,15 +254,13 @@ func RunNodeStartCommand(cCtx *cli.Context) error {
 
 	var opts []bao.NodeConfigOpt
 
-	switch storage {
-	case "", "raft":
-		opts = append(opts, &bao.RaftStorage{})
-	case "file":
-		opts = append(opts, &bao.FileStorage{})
-	case "inmem":
-		opts = append(opts, &bao.InmemStorage{})
-	default:
-		return fmt.Errorf("unknown value for -storage: `%v`; supported values are `raft`, `file`, or `inmem`", storage)
+	storageOpts, err := getStorageOpts(cCtx)
+	if err != nil {
+		return err
+	}
+
+	if storageOpts != nil {
+		opts = append(opts, storageOpts...)
 	}
 
 	listeners := cCtx.StringSlice("listeners")
@@ -285,36 +278,12 @@ func RunNodeStartCommand(cCtx *cli.Context) error {
 		}
 	}
 
-	seals := cCtx.StringSlice("seals")
-	for index, seal := range seals {
-		url, err := url.Parse(seal)
-		if err != nil {
-			return fmt.Errorf("failed parsing seal's uri at index %d (`%v`): %w", index, seal, err)
-		}
-
-		// Assume transit.
-
-		if url.User == nil || url.User.Username() == "" {
-			return fmt.Errorf("malformed or missing user info: expected token in username for Transit: `%v`", url.User.String())
-		}
-
-		token := url.User.Username()
-		addr := fmt.Sprintf("%v://%v", url.Scheme, url.Host)
-
-		if !strings.Contains(url.Path, "/keys/") {
-			return fmt.Errorf("malformed path: no `/keys/` segment: `%v`", url.Path)
-		}
-
-		parts := strings.Split(url.Path, "/keys/")
-		mount_path := strings.Join(parts[0:len(parts)-1], "/keys")
-		key_name := parts[len(parts)-1]
-
-		opts = append(opts, &bao.TransitSeal{
-			Address:   addr,
-			Token:     token,
-			MountPath: mount_path,
-			KeyName:   key_name,
-		})
+	sealOpts, err := getSealsOpts(cCtx)
+	if err != nil {
+		return err
+	}
+	if sealOpts != nil {
+		opts = append(opts, sealOpts...)
 	}
 
 	if audit {

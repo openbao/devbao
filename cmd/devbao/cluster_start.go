@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/openbao/devbao/pkg/bao"
@@ -13,7 +11,7 @@ import (
 )
 
 func ClusterInfoFlags() []cli.Flag {
-	return []cli.Flag{
+	flags := []cli.Flag{
 		&cli.StringFlag{
 			Name:  "type",
 			Value: "ha",
@@ -45,16 +43,15 @@ func ClusterInfoFlags() []cli.Flag {
 			Usage: "lowest port number to use for clustered nodes; increments by 100.",
 		},
 		&cli.StringSliceFlag{
-			Name:  "seals",
-			Value: nil,
-			Usage: "URI schemes of seals to add; can be specified multiple times. Use\n\t`http(s)://<TOKEN>@<ADDR>/<MOUNT_PATH>/keys/<KEY_NAME>` for Transit.",
-		},
-		&cli.StringSliceFlag{
 			Name:    "profiles",
 			Aliases: []string{"p"},
 			Usage:   "profiles to apply to the new node",
 		},
 	}
+
+	flags = append(flags, sealFlags()...)
+	flags = append(flags, storageFlags()...)
+	return flags
 }
 
 func BuildClusterStartCommand() *cli.Command {
@@ -119,6 +116,13 @@ func RunClusterStartCommand(cCtx *cli.Context) error {
 
 	nType := cCtx.String("node-type")
 
+	// Create seal opts once: in the event of using static unseal, we want a
+	// single key to be used for all nodes in the cluster.
+	sealOpts, err := getSealsOpts(cCtx)
+	if err != nil {
+		return err
+	}
+
 	// Build nodes
 	var nodes []*bao.Node
 	for index := 0; index < count; index++ {
@@ -136,41 +140,23 @@ func RunClusterStartCommand(cCtx *cli.Context) error {
 
 		var opts []bao.NodeConfigOpt
 
+		// Create storage opts per instance:
+		storageOpts, err := getStorageOpts(cCtx)
+		if err != nil {
+			return err
+		}
+
+		if storageOpts != nil {
+			opts = append(opts, storageOpts...)
+		}
+
 		opts = append(opts, &bao.RaftStorage{})
 		opts = append(opts, &bao.TCPListener{
 			Address: fmt.Sprintf("%v:%d", listen, port),
 		})
 
-		seals := cCtx.StringSlice("seals")
-		for index, seal := range seals {
-			url, err := url.Parse(seal)
-			if err != nil {
-				return fmt.Errorf("failed parsing seal's uri at index %d (`%v`): %w", index, seal, err)
-			}
-
-			// Assume transit.
-
-			if url.User == nil || url.User.Username() == "" {
-				return fmt.Errorf("malformed or missing user info: expected token in username for Transit: `%v`", url.User.String())
-			}
-
-			token := url.User.Username()
-			addr := fmt.Sprintf("%v://%v", url.Scheme, url.Host)
-
-			if !strings.Contains(url.Path, "/keys/") {
-				return fmt.Errorf("malformed path: no `/keys/` segment: `%v`", url.Path)
-			}
-
-			parts := strings.Split(url.Path, "/keys/")
-			mount_path := strings.Join(parts[0:len(parts)-1], "/keys")
-			key_name := parts[len(parts)-1]
-
-			opts = append(opts, &bao.TransitSeal{
-				Address:   addr,
-				Token:     token,
-				MountPath: mount_path,
-				KeyName:   key_name,
-			})
+		if sealOpts != nil {
+			opts = append(opts, sealOpts...)
 		}
 
 		node, err := bao.BuildNode(name, nType, opts...)
