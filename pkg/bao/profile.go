@@ -12,6 +12,7 @@ const (
 	PKIProfile      string = "pki"
 	TransitProfile  string = "transit"
 	UserpassProfile string = "userpass"
+	SecretProfile   string = "secret"
 )
 
 func ListProfiles() []string {
@@ -19,6 +20,7 @@ func ListProfiles() []string {
 		PKIProfile,
 		TransitProfile,
 		UserpassProfile,
+		SecretProfile,
 	}
 }
 
@@ -30,6 +32,8 @@ func ProfileDescription(name string) string {
 		return "enable transit for auto-unseal of another cluster"
 	case UserpassProfile:
 		return "enable userpass authentication and sample policy"
+	case SecretProfile:
+		return "enable a KVv2 static secret engine"
 	}
 
 	return ""
@@ -43,6 +47,8 @@ func ProfileSetup(client *api.Client, profile string) ([]string, error) {
 		return ProfileTransitSealMountSetup(client)
 	case UserpassProfile:
 		return ProfileUserpassMountSetup(client)
+	case SecretProfile:
+		return ProfileSecretMountSetup(client)
 	default:
 		return nil, fmt.Errorf("unknown profile to apply: %v", profile)
 	}
@@ -56,6 +62,8 @@ func ProfileRemove(client *api.Client, profile string) ([]string, error) {
 		return ProfileTransitSealMountRemove(client)
 	case UserpassProfile:
 		return ProfileUserpassMountRemove(client)
+	case SecretProfile:
+		return ProfileSecretMountRemove(client)
 	default:
 		return nil, fmt.Errorf("unknown profile to apply: %v", profile)
 	}
@@ -392,6 +400,10 @@ path "transit/random" {
 path "transit/random/*" {
 	capabilities = ["create", "update"]
 }
+
+path "secret/+/scratch/*" {
+	capabilities = ["create", "read", "update", "patch", "list", "scan"]
+}
 `
 
 func ProfileUserpassMountSetup(client *api.Client) ([]string, error) {
@@ -434,6 +446,24 @@ func ProfileUserpassMountSetup(client *api.Client) ([]string, error) {
 func ProfileUserpassMountRemove(client *api.Client) ([]string, error) {
 	if err := client.Sys().DisableAuth("userpass"); err != nil {
 		return nil, fmt.Errorf("failed to remove userpass mount: %w", err)
+	}
+
+	return nil, nil
+}
+
+func ProfileSecretMountSetup(client *api.Client) ([]string, error) {
+	if err := client.Sys().Mount("secret", &api.MountInput{
+		Type: "kv-v2",
+	}); err != nil {
+		return nil, fmt.Errorf("failed to mount kv2 instance: %w", err)
+	}
+
+	return nil, nil
+}
+
+func ProfileSecretMountRemove(client *api.Client) ([]string, error) {
+	if err := client.Sys().Unmount("secret"); err != nil {
+		return nil, fmt.Errorf("failed to remove secret mount: %w", err)
 	}
 
 	return nil, nil
