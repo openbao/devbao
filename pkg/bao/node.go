@@ -440,18 +440,19 @@ func (n *Node) GetConnectAddr() (string, string, error) {
 
 func (n *Node) GetEnv() (map[string]string, error) {
 	results := make(map[string]string)
-	prefix := "VAULT_"
 
 	addr, ca, err := n.GetConnectAddr()
 	if err != nil {
 		return nil, err
 	}
 
-	results[prefix+"ADDR"] = addr
-	results[prefix+"TOKEN"] = n.Token
+	for _, prefix := range []string{"VAULT_", "BAO_"} {
+		results[prefix+"ADDR"] = addr
+		results[prefix+"TOKEN"] = n.Token
 
-	if ca != "" {
-		results[prefix+"CACERT"] = ca
+		if ca != "" {
+			results[prefix+"CACERT"] = ca
+		}
 	}
 
 	return results, nil
